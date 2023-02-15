@@ -1,0 +1,103 @@
+```{r}
+library(tidyverse)
+library(stringr)
+library(sf)
+library(readxl)
+library(countrycode)
+library(ggthemes)
+
+rating <- read_xlsx("~/Downloads/sovrrating2023.xlsx")
+
+rating <- rating %>%
+        filter(!Country %in% c("Abu Dhabi", "Ras Al Khaimah (Emirate of)", "Sharjah")) %>%
+        mutate(`Moody's Rating` = stringr::str_squish(`Moody's Rating`),
+               `S&P Rating` = stringr::str_squish(`S&P Rating`))
+
+rating <- rating %>%
+        mutate(`Moody's Rating` = gsub("N/A", NA, `Moody's Rating`),
+               `Moody's Rating` = gsub("NA", NA, `Moody's Rating`),
+               `S&P Rating` = gsub("N/A", NA, `S&P Rating`),
+               `S&P Rating` = gsub("NA", NA, `S&P Rating`),
+               `Moody's Rating` = stringr::str_to_upper(`Moody's Rating`),
+               `S&P Rating` = stringr::str_to_upper(`S&P Rating`))
+
+rating <- rating %>%
+        mutate(`S&P Rating` = as_factor(`S&P Rating`),
+               `Moody's Rating` = as_factor(`Moody's Rating`))
+
+rating <- rating %>%
+        mutate(Country = countrycode(sourcevar = Country, origin = "country.name.en", destination = "iso2c"))
+
+rating <- rating %>%
+        mutate(MD = fct_recode(`Moody's Rating`, 
+                               Aaa = "AAA",
+                               `Aa1-Baa1` = "AA1",
+                               `Aa1-Baa1` = "AA2",
+                               `Aa1-Baa1` = "AA3",
+                               `Aa1-Baa1` = "A1",
+                               `Aa1-Baa1` = "A2",
+                               `Aa1-Baa1` = "A3",
+                               `Aa1-Baa1` = "BAA1",
+                               `Baa2-Baa3` = "BAA2",
+                               `Baa2-Baa3` = "BAA3",
+                               `Ba1-B3` = "BA1",
+                               `Ba1-B3` = "BA2",
+                               `Ba1-B3` = "BA3",
+                               `Ba1-B3` = "B1",
+                               `Ba1-B3` = "B2",
+                               `Ba1-B3` = "B3",
+                               `Caa1-C` = "BBB",
+                               `Caa1-C` = "CAA1",
+                               `Caa1-C` = "CAA2",
+                               `Caa1-C` = "CAA3",
+                               `Caa1-C` = "CA",
+                               `Caa1-C` = "C"))
+                                       
+world_countries <- sf::read_sf("~/Downloads/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
+
+data_map <- left_join(world_countries, rating, by = c("ISO_A2_EH" = "Country"))
+data_map <- filter(data_map, !str_detect(ADMIN, "Antarctica"))
+data_map$MD <- factor(data_map$MD, levels = c("Aaa", "Aa1-Baa1", "Baa2-Baa3", "Ba1-B3", "Caa1-C"))
+
+ggplot(data_map) +
+        geom_sf(aes(fill=MD))  +
+        scale_fill_discrete() +
+        scale_fill_manual(na.value = "Grey", values = c("Dark green", "Light green", "Yellow", "Orange", "Red")) +
+        theme_map() +
+        geom_sf_text(aes(label = ADMIN), 
+                     colour = "white", 
+                     size=1.5) +
+        theme(legend.key.width = unit(1.5, units="cm"), 
+              legend.key.height = unit(0.1, units="cm"),
+              legend.title = element_text(size=0),
+              legend.box = "box",
+              legend.box.background = element_rect(color="black", size=0.5),
+              legend.box.margin = margin(0, 1, 0, 1)
+        )
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
